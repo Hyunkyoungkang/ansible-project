@@ -1,0 +1,788 @@
+---
+- hosts: localhost
+  become: yes
+  vars_files:
+    - ./vars.yml
+  tasks:
+
+    - name: Create VPC
+      ec2_vpc_net:
+        name: team03_vpc
+        cidr_block: 10.3.0.0/16
+        region: "{{ region }}"
+        state: present
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+      register: vpc_result
+      when: vpc_result.vpc.id is not defined or vpc_result.vpc.id.changed
+
+    - name: Save the team03_vpc
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          vpc_id: {{ vpc_result.vpc.id }}
+        marker: "# {mark} vpc"
+
+
+
+    - name: Create Public Subnet 2a
+      ec2_vpc_subnet:
+        cidr: 10.3.1.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2a
+        map_public: yes
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_pub_2a
+      register: subnet_result_pub_2a
+      when: subnet_result_pub_2a.subnet.id is not defined or subnet_result_pub_2a.subnet.id.changed
+
+    - name: Save the team03_subnet_pub_2a
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          subnet_pub_2a: {{ subnet_result_pub_2a.subnet.id }}
+        marker: "# {mark} Public Subnet 2a"
+
+
+    - name: Create Public Subnet 2c
+      ec2_vpc_subnet:
+        cidr: 10.3.2.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2c
+        map_public: yes
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_pub_2c
+      register: subnet_result_pub_2c
+      when: subnet_result_pub_2c.subnet.id is not defined or subnet_result_pub_2c.subnet.id.changed
+
+    - name: Save the team03_subnet_pub_2c
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          subnet_pub_2c: {{ subnet_result_pub_2c.subnet.id }}
+        marker: "# {mark} Public Subnet 2c"
+
+
+    - name: Create Private Subnet 2a
+      ec2_vpc_subnet:
+        cidr: 10.3.10.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2a
+        map_public: false
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_private_2a
+      register: subnet_result_private_2a
+      when: subnet_result_private_2a.subnet.id is not defined or subnet_result_private_2a.subnet.id.changed
+
+    - name: Save the team03_subnet_private_2a
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          subnet_private_2a: {{ subnet_result_private_2a.subnet.id }}
+        marker: "# {mark} Private Subnet 2a"
+
+
+    - name: Create Private Subnet 2c
+      ec2_vpc_subnet:
+        cidr: 10.3.20.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2c
+        map_public: false
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_private_2c
+      register: subnet_result_private_2c
+      when: subnet_result_private_2c.subnet.id is not defined or subnet_result_private_2c.subnet.id.changed
+
+    - name: Save the team03_subnet_private_2c
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          subnet_private_2c: {{ subnet_result_private_2c.subnet.id }}
+        marker: "# {mark} Private Subnet 2c"
+
+
+    - name: Create Internet Gateway
+      ec2_vpc_igw:
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        state: present
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        tags:
+          Name: team03_igw
+      register: igw_result
+      when: igw_result.gateway_id is not defined or igw_result.gateway_id.changed
+
+    
+    - name: Save the team03_igw
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          igw_id: {{ igw_result.gateway_id }}
+        marker: "# {mark} igw_id"
+
+
+
+
+    - name: Elastic IP check
+      set_fact:
+        eip_exists: "{{ lookup('file', '/root/aws-ansible/vars.yml') | regex_search('allocation_id: (.*)', ignorecase=True) }}"
+      when: eip_result is not defined      
+
+    - name: Create Elastic IP in AWS
+      ec2_eip:
+        state: present
+        region: "{{ region }}"
+        in_vpc: true
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        tags:
+          Name: team03_nat_eip
+      register: eip_result
+      when: eip_exists is not defined or eip_exists == ""
+
+    - name: Save the team03_eip
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          allocation_id: {{ eip_result.allocation_id }}
+        marker: "# {mark} eip"
+      when: eip_result.allocation_id is defined
+
+
+
+    - name: Check if the NAT Gateway already exists
+      set_fact:
+        nat_gateway_exists: "{{ lookup('file', '/root/aws-ansible/vars.yml') | regex_search('ngw_id: (.*)', ignorecase=True) }}"
+      when: nat_gateway_result is not defined
+
+
+
+    - name: Create NAT Gateway
+      ec2_vpc_nat_gateway:
+        region: "{{ region }}"
+        state: present
+        allocation_id: "{{ allocation_id }}"
+        subnet_id: "{{ subnet_pub_2a }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        tags:
+          Name: team03_nat_gw
+      register: nat_gateway_result
+      when: nat_gateway_exists is not defined or nat_gateway_exists == ""
+
+    - name: Save the team03_nat
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          ngw_id: {{ nat_gateway_result.nat_gateway_id }}
+        marker: "# {mark} nat"
+      when: nat_gateway_result.nat_gateway_id is defined
+
+
+    - name: Create Route Table for Public Subnet
+      ec2_vpc_route_table:
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        subnets:
+          - "{{ subnet_pub_2a }}"
+          - "{{ subnet_pub_2c }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw_id }}"
+          - dest: ::/0
+            gateway_id: "{{ igw_id }}"
+        tags:
+          Name: team03_public_route_table
+        state: present
+      register: public_route_table_result
+
+
+    - name: Create Route Table for Private Subnet 2a
+      ec2_vpc_route_table:
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        subnets: "{{ subnet_private_2a }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ ngw_id }}"
+        tags:
+          Name: team03_private_route_table_2a
+        state: present
+      register: private_route_table_result_2a
+
+
+
+    - name: Create Route Table for Private Subnet 2c
+      ec2_vpc_route_table:
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        subnets: "{{ subnet_private_2c }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ ngw_id }}"
+        tags:
+          Name: team03_private_route_table_2c
+        state: present
+      register: private_route_table_result_2c
+
+
+
+
+    - name: Create EC2 security group only ssh    
+      ec2_group:
+        name: team03_sg_remote
+        description: team03_sg_ssh
+        vpc_id: "{{ vpc_id }}" 
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+        tags:
+          Name: team03_sg_remote
+      register: sg_remote_result
+      when: sg_remote_result is not defined or sg_remote_result.changed
+
+
+    - name: Save the team03_sg_remote
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          sg_remote_id: {{ sg_remote_result.group_id }} 
+        marker: "# {mark} sg_remote"
+
+
+
+    - name: Create EC2 security group http
+      ec2_group:
+        name: team03_sg_web
+        description: team03_sg_ssh_http
+        vpc_id: "{{ vpc_id }}" 
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+
+        tags:
+          Name: team03_sg_web
+      register: sg_web_result
+      when: sg_web_result is not defined or sg_web_result.changed
+
+
+    - name: Save the team03_sg_web
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          sg_web_id: {{ sg_web_result.group_id }}
+        marker: "# {mark} sg_web"
+
+
+
+    - name: Create IAM Policy for EC2
+
+      iam_managed_policy:
+        policy_name: team03_EC2_Policy
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        policy: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:Get*",
+                  "s3:List*"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        state: present
+        tags:
+          Name: team03_ec2_Policy
+      register: ec2_policy
+
+    - name: Save the team03_ec2_policy
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          ec2_policy_arn: {{ ec2_policy.policy.arn }}
+        marker: "# {mark} ec2_policy"
+
+
+
+    - name: Create IAM Policy for CodeDeploy
+
+      iam_managed_policy:
+        policy_name: team03_CodeDeploy_Policy
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        policy: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                "autoscaling:CompleteLifecycleAction",
+                "autoscaling:DeleteLifecycleHook",
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeLifecycleHooks",
+                "autoscaling:PutLifecycleHook",
+                "autoscaling:RecordLifecycleActionHeartbeat",
+                "autoscaling:CreateAutoScalingGroup",
+                "autoscaling:CreateOrUpdateTags",
+                "autoscaling:UpdateAutoScalingGroup",
+                "autoscaling:EnableMetricsCollection",
+                "autoscaling:DescribePolicies",
+                "autoscaling:DescribeScheduledActions",
+                "autoscaling:DescribeNotificationConfigurations",
+                "autoscaling:SuspendProcesses",
+                "autoscaling:ResumeProcesses",
+                "autoscaling:AttachLoadBalancers",
+                "autoscaling:AttachLoadBalancerTargetGroups",
+                "autoscaling:PutScalingPolicy",
+                "autoscaling:PutScheduledUpdateGroupAction",
+                "autoscaling:PutNotificationConfiguration",
+                "autoscaling:PutWarmPool",
+                "autoscaling:DescribeScalingActivities",
+                "autoscaling:DeleteAutoScalingGroup",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceStatus",
+                "ec2:TerminateInstances",
+                "tag:GetResources",
+                "sns:Publish",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:PutMetricAlarm",
+                "elasticloadbalancing:DescribeLoadBalancerAttributes",
+                "elasticloadbalancing:DescribeTargetGroupAttributes",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeInstanceHealth",
+                "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:DescribeTargetHealth",
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets"
+                ],
+                "Resource": "*"
+              }
+            ]
+          }
+        state: present
+        tags:
+          Name: team03_codedeploy_Policy
+      register: codedeploy_policy
+
+    - name: Save the team03_codedeploy_policy
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          codedeploy_policy_arn: {{ codedeploy_policy.policy.arn }}
+        marker: "# {mark} codedeploy_policy"
+
+
+
+    - name: Create CodeDeploy Role
+      iam_role:
+        name: team03_CodeDeploy_Role
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        assume_role_policy_document: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "codedeploy.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          }
+        state: present
+        tags:
+          Name: team03_CodeDeploy_Role
+        managed_policy: "{{ codedeploy_policy_arn }}"
+      register: team03_CodeDeploy_Role
+
+
+
+    - name: Save the team03_codedeploy_role_arn
+      
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          codedeploy_role_arn: {{ team03_CodeDeploy_Role.iam_role.arn }}
+        marker: "# {mark} codedeploy_role"
+
+
+
+    - name: Create EC2 Role
+
+      iam_role:
+        name: team03_EC2_Role
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        assume_role_policy_document: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": [
+                    "ec2.amazonaws.com"
+                  ]
+                },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          }
+        state: present
+        tags:
+          Name: team03_EC2_Role
+        managed_policy: "{{ ec2_policy_arn }}"
+      register: team03_EC2_Role
+
+
+    - name: Save the team03_ec2_role_arn
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          ec2_role_arn: {{ team03_EC2_Role.iam_role.arn }}
+        marker: "# {mark} ec2_role"
+
+
+
+    - name: Create bastion
+
+      ec2_instance:
+        instance_type: t2.micro
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        key_name: project_team_03_key
+        image_id: "{{ ubuntu }}"
+        region: "{{ region }}"
+        security_group: "{{ sg_remote_id }}"
+        subnet_id: "{{ subnet_pub_2a }}"
+        wait: yes
+        wait_timeout: 100
+        network:
+          assign_public_ip: yes
+        tags:
+          Name: team03_bastion
+      register: bastion_result
+
+    - name: Save the team03_bastion
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          bastion_pub_ip: {{ bastion_result.instances[0].public_ip_address }}
+        marker: "# {mark} bastion_pub_ip"
+
+
+
+
+    - name: Create jenkins
+
+      ec2_instance:
+        instance_type: t2.small
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        key_name: project_team_03_key
+        image_id: "{{ ubuntu }}"
+        region: "{{ region }}"
+        security_group: "{{ sg_web_id }}"
+        subnet_id: "{{ subnet_private_2a }}"
+        volumes:
+          - device_name: /dev/sda1
+            ebs:
+              volume_size: 30
+              delete_on_termination: true
+        wait: yes
+        wait_timeout: 100
+        network:
+          assign_public_ip: no
+        tags:
+          Name: team03-jenkins
+        user_data: "{{ lookup('file', 'user_data.sh') }}"
+      register: team03_jenkins_result
+
+
+    - name: Save the team03_jenkins
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          jenkins_arn: {{ team03_jenkins_result.instances[0].instance_id }}
+          jenkins_private_ip: {{ team03_jenkins_result.instances[0].private_ip_address }}
+
+        marker: "# {mark} jenkins_private_ip"
+
+
+
+    - name: Create target group web
+
+      elb_target_group:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        name: team03-target-group-web
+        protocol: http
+        region: "{{ region }}"
+        port: 80
+        vpc_id: "{{ vpc_id }}"
+        health_check_protocol: http
+        health_check_path: /health
+        successful_response_codes: "200,250-260"
+        tags:
+          Name: team03_target_group_web
+        state: present
+      register: team03_target_group_web_result
+      when: team03_target_group_web_result is not defined or team03_target_group_web_result.changed
+
+    
+    - name: Save the target group web result
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          target_group_web_arn: {{ team03_target_group_web_result.target_group_arn }}
+        marker: "# {mark} target_group_web"
+
+
+    - name: Create target group jenkins
+      elb_target_group:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        name: team03-target-group-jenkins
+        protocol: http
+        region: "{{ region }}"
+        port: 80
+        vpc_id: "{{ vpc_id }}"
+        health_check_protocol: http
+        health_check_path: /health
+        successful_response_codes: "200,250-260"
+        tags:
+          Name: team03_target_group_jenkins
+        state: present
+      register: team03_target_group_jenkins_result
+      when: team03_target_group_jenkins_result is not defined or team03_target_group_jenkins_result.changed
+
+
+    - name: Save the target group jenkins result
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          target_group_jenkins_arn: {{ team03_target_group_jenkins_result.target_group_arn }}
+        marker: "# {mark} target_group_jenkins"
+
+
+
+
+    - name: Create elb
+
+      elb_application_lb:
+        name: team03-elb
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        security_groups:
+          - "{{ sg_web_id }}"
+        subnets:
+          - "{{ subnet_pub_2a }}"
+          - "{{ subnet_pub_2c }}"
+        listeners:
+          - Protocol: HTTP
+            Port: 80
+            DefaultActions:
+              - Type: forward
+                TargetGroupArn: "{{ target_group_jenkins_arn }}"
+            Rules:
+              - Conditions:
+                  - Field: "host-header"
+                    Values:
+                      - "team03.web.jinlabs.net"
+                Priority: "1"
+                Actions:
+                  - Type: forward
+                    TargetGroupArn: "{{ target_group_web_arn }}"      
+        state: present
+      register: elb_result
+      
+
+
+    - name: Save the team03_elb result
+
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          hosted_zone_id: {{ elb_result.canonical_hosted_zone_id }}
+          dns_name: {{ elb_result.dns_name }}
+        marker: "# {mark} elb"
+
+
+
+    - name: Create launch template 
+
+      ec2_launch_template:
+        name: team03_template
+        version_description: version_1
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        image_id: "{{ target_ami }}"
+        instance_type: t2.micro
+        iam_instance_profile: team03_EC2_Role
+        key_name: project_team_03_key
+        security_group_ids: 
+          - "{{ sg_web_id }}"
+        region: "{{ region }}"
+
+      register: team03_template
+      when: team03_template is not defined or team03_template.changed
+
+
+
+    - name: Create Auto Scaling Group
+
+      amazon.aws.autoscaling_group:
+        name: team03_asg
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        launch_template:
+          launch_template_name: "{{ team03_template.default_template.launch_template_name }}"  
+          version: "{{ team03_template.latest_version }}"
+        min_size: 1
+        max_size: 3
+        desired_capacity: 1
+        vpc_zone_identifier:
+          - "{{ subnet_private_2a }}" 
+          - "{{ subnet_private_2c }}"
+        target_group_arns:
+          - "{{ target_group_web_arn }}"
+        region: "{{ region }}"
+        tags:
+          - Name: team03_target
+            propagate_at_launch: true
+      register: team03_asg
+      when: team03_asg is not defined or team03_asg.changed
+
+
+
+    - name: Add to jenkins.domain.com
+
+      community.aws.route53:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        zone: jinlabs.net
+        record: team03.jenkins.jinlabs.net
+        type: A
+        value: "{{ dns_name }}"
+        alias: true
+        alias_hosted_zone_id: "{{ hosted_zone_id }}"
+        wait: yes
+        overwrite: true  
+      register: domain_jenkins_result  
+
+
+    - name: Add to web.domain.com
+
+      community.aws.route53:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        zone: jinlabs.net
+        record: team03.web.jinlabs.net
+        type: A
+        value: "{{ dns_name }}"
+        alias: true
+        alias_hosted_zone_id: "{{ hosted_zone_id }}"
+        wait: yes
+        overwrite: true
+      register: domain_web_result
+
+
+
+
+
+    - name: jenkins instance with target group
+
+      elb_target:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        target_group_arn: "{{ target_group_jenkins_arn }}"
+        target_id: "{{ jenkins_arn }}"
+        region: "{{ region }}"
+        target_port: 80
+        state: present
+
+
+
+    - name: Create S3 bucket
+
+      s3_bucket:
+        name: team03-bucket
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        region: "{{ region }}"
+
+
+
+    - name: Add Bastion host to SSH config
+
+      blockinfile:
+        path: ~/.ssh/config
+        block: |
+          Host bastion
+            Hostname "{{ bastion_pub_ip }}"
+            User ubuntu
+            IdentityFile ~/aws-ansible/project_team_03_key.pem
+          Host jenkins
+            Hostname "{{ jenkins_private_ip }}"
+            User ubuntu
+            IdentityFile ~/aws-ansible/project_team_03_key.pem
+            ProxyJump bastion
+        create: yes
+        mode: "0600"
+        marker: "# {mark} ssh config"

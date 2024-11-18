@@ -1,0 +1,66 @@
+region: ap-northeast-2
+code_deploy_policy_arn: arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
+ngw_id: nat-0dbc4981acf62a34e
+ubuntu: ami-042e76978adeb8c48
+target_ami: ami-02539abb460d4267b
+
+# BEGIN vpc
+vpc_id: vpc-0904725a2aac577c8
+# END vpc
+# BEGIN Public Subnet 2a
+subnet_pub_2a: subnet-02e93155567f987a2
+# END Public Subnet 2a
+# BEGIN Public Subnet 2c
+subnet_pub_2c: subnet-09eae4bf621716451
+# END Public Subnet 2c
+# BEGIN Private Subnet 2a
+subnet_private_2a: subnet-0f241045adba3c9b1
+# END Private Subnet 2a
+# BEGIN Private Subnet 2c
+subnet_private_2c: subnet-0549b4515a42faf89
+# END Private Subnet 2c
+# BEGIN igw_id
+igw_id: igw-0181f818dd861cdb0
+# END igw_id
+# BEGIN eip
+allocation_id: eipalloc-0a18d1e250ec42be2
+# END eip
+# BEGIN nat
+ngw_id: nat-0d512c03289c6cf3a
+# END nat
+# BEGIN sg_remote
+sg_remote_id: sg-0f286403baff670b6 
+# END sg_remote
+# BEGIN sg_web
+sg_web_id: sg-0e9b5fa1bee9dbf43
+# END sg_web
+# BEGIN ec2_policy
+ec2_policy_arn: arn:aws:iam::491085389788:policy/team03_EC2_Policy
+# END ec2_policy
+# BEGIN codedeploy_policy
+codedeploy_policy_arn: arn:aws:iam::491085389788:policy/team03_CodeDeploy_Policy
+# END codedeploy_policy
+# BEGIN codedeploy_role
+codedeploy_role_arn: arn:aws:iam::491085389788:role/team03_CodeDeploy_Role
+# END codedeploy_role
+# BEGIN ec2_role
+ec2_role_arn: arn:aws:iam::491085389788:role/team03_EC2_Role
+# END ec2_role
+
+# BEGIN bastion_pub_ip
+bastion_pub_ip: 54.180.134.220
+# END bastion_pub_ip
+# BEGIN jenkins_private_ip
+jenkins_arn: i-0ba7c88ed63933fdb
+jenkins_private_ip: 10.3.10.31
+# END jenkins_private_ip
+# BEGIN target_group_web
+target_group_web_arn: arn:aws:elasticloadbalancing:ap-northeast-2:491085389788:targetgroup/team03-target-group-web/3325ff5ce98d14b9
+# END target_group_web
+# BEGIN target_group_jenkins
+target_group_jenkins_arn: arn:aws:elasticloadbalancing:ap-northeast-2:491085389788:targetgroup/team03-target-group-jenkins/6ce4c9942dcb4d2f
+# END target_group_jenkins
+# BEGIN elb
+hosted_zone_id: ZWKZPGTI48KDX
+dns_name: team03-elb-811764751.ap-northeast-2.elb.amazonaws.com
+# END elb

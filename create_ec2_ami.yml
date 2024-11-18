@@ -1,0 +1,40 @@
+---
+- name: Create AMI from EC2 instance
+  hosts: localhost
+  gather_facts: no
+  become: yes
+  vars_files:
+    - ./default_var.yml
+      ./variables.yml
+
+  tasks:
+
+    - name: Terminate the specified EC2 instance
+      ec2_instance:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        instance_ids: i-0377396f42d13a52a
+        state: stopped
+        region: ap-northeast-2
+      register: terminate_result
+
+    - name: Display termination result
+      debug:
+        msg: "Instance {{ my_string }} has been terminated"
+
+    - name: Create AMI from the specified instance
+      ec2_ami:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        instance_id: "{{ my_string }}"
+        name: target
+        region: ap-northeast-2
+        wait: yes
+        tags:
+          Name: "target-ami"
+      register: ec2_ami_result
+
+    - name: Display the created AMI ID
+      debug:
+        msg: "AMI ID is {{ ec2_ami_result.image_id }}"
+

@@ -1,0 +1,451 @@
+---
+- hosts: localhost
+  become: yes
+  vars_files:
+    - ./default_var.yml
+    - ./variables.yml
+
+  tasks:
+    - name: Create VPC
+      ec2_vpc_net:
+        name: team03_vpc
+        cidr_block: 10.3.0.0/16
+        region: "{{ region }}"
+        state: present
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+      register: vpc_result
+    - name: Show team03_vpc creation result
+      debug:
+        var: vpc_result
+    - name: Save the team03_vpc result to a file
+      copy:
+        content: "{{ {'vpc_id': vpc_result.vpc.id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create Public Subnet 2a
+      ec2_vpc_subnet:
+        cidr: 10.3.1.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2a
+        map_public: yes
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_pub_2a
+      register: subnet_result_pub_2a
+    - name: Show team03_subnet_pub_2a creation result
+      debug:
+        var: subnet_result_pub_2a
+    - name: Save the team03_subnet_pub_2a result to a file
+      lineinfile:
+        line: "{{ {'subnet_pub_2a': subnet_result_pub_2a.subnet.id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create Public Subnet 2c
+      ec2_vpc_subnet:
+        cidr: 10.3.2.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2c
+        map_public: yes
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_pub_2c
+      register: subnet_result_pub_2c
+    - name: Show team03_subent_pub_2c creation result
+      debug:
+        var: subnet_result_pub_2c
+    - name: Save the team03_subnet_pub_2c result to a file
+      lineinfile:
+        line: "{{ {'subnet_pub_2c': subnet_result_pub_2c.subnet.id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create Private Subnet 2a
+      ec2_vpc_subnet:
+        cidr: 10.3.10.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2a
+        map_public: false
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_private_2a
+      register: subnet_result_private_2a
+    - name: Show team03_subnet_private_2a creation result
+      debug:
+        var: subnet_result_private_2a
+    - name: Save the team03_subnet_private_2a result to a file
+      lineinfile:
+        line: "{{ {'subnet_private_2a': subnet_result_private_2a.subnet.id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+    - name: Create Private Subnet 2c
+      ec2_vpc_subnet:
+        cidr: 10.3.20.0/24
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        az: ap-northeast-2c
+        map_public: false
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        tags:
+          Name: team03_subnet_private_2c
+      register: subnet_result_private_2c
+    - name: Show team03_subnet_private_2c creation result
+      debug:
+        var: subnet_result_private_2c
+    - name: Save the team03_subnet_private_2c result to a file
+      lineinfile:
+        line: "{{ {'subnet_private_2c': subnet_result_private_2c.subnet.id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create Internet Gateway
+      ec2_vpc_igw:
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        state: present
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        tags:
+          Name: team03_igw
+      register: igw_result
+    - name: Show team03_igw creation result
+      debug:
+        var: igw_result
+    - name: Save the team03_igw result to a file
+      lineinfile:
+        line: "{{ {'igw_id': igw_result.gateway_id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create Elastic IP in AWS
+      ec2_eip:
+        state: present
+        region: "{{ region }}"
+        in_vpc: true
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        tags:
+          Name: team03_nat_eip
+      register: eip_result
+    - name: Show team03_eip creation result
+      debug:
+        var: eip_result
+    - name: Save the team03_eip result to a file
+      lineinfile:
+        line: "{{ {'allocation_id': eip_result.allocation_id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create NAT Gateway
+      ec2_vpc_nat_gateway:
+        region: "{{ region }}"
+        state: present
+        allocation_id: "{{ allocation_id }}"
+        subnet_id: "{{ subnet_pub_2a }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        tags:
+          Name: team03_nat_gw
+      register: nat_gateway_result
+    - name: Show team03_ngw creation result
+      debug:
+        var: nat_gateway_result
+    - name: Save the team03_ngw result to a file
+      lineinfile:
+        line: "{{ {'ngw_id': nat_gateway_result.nat_gateway_id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+    - name: Create Route Table for Public Subnet
+      ec2_vpc_route_table:
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        subnets:
+          - "{{ subnet_pub_2a }}"
+          - "{{ subnet_pub_2c }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw_id }}"
+          - dest: ::/0
+            gateway_id: "{{ igw_id }}"
+        tags:
+          Name: team03_public_route_table
+        state: present
+      register: public_route_table_result
+
+
+
+    - name: Create Route Table for Private Subnet 2a
+      ec2_vpc_route_table:
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        subnets: "{{ subnet_private_2a }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ ngw_id }}"
+        tags:
+          Name: team03_private_route_table_2a
+        state: present
+      register: private_route_table_result_2a
+
+
+
+    - name: Create Route Table for Private Subnet 2c
+      ec2_vpc_route_table:
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        subnets: "{{ subnet_private_2c }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ ngw_id }}"
+        tags:
+          Name: team03_private_route_table_2c
+        state: present
+      register: private_route_table_result_2c
+
+
+
+    - name: Create EC2 security group only ssh
+      ec2_group:
+        name: team03_sg_remote
+        description: team03_sg_remote_ssh
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+        tags:
+          Name: team03_sg_remote
+      register: sg_remote_result
+
+    - name: Show team03_sg_remote creation result
+      debug:
+        var: sg_remote_result
+    - name: Save the team03_sg_remote result to a file
+      lineinfile:
+        line: "{{ {'sg_remote_id': sg_remote_result.group_id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create EC2 security group ssh_http
+      ec2_group:
+        name: team03_sg_web
+        description: team03_sg_web_ssh_http
+        vpc_id: "{{ vpc_id }}"
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+        tags:
+          Name: team03_sg_web
+      register: sg_web_result
+
+    - name: Show team03_sg_web creation result
+      debug:
+        var: sg_web_result
+    - name: Save the team03_sg_web result to a file
+      lineinfile:
+        line: "{{ {'sg_web_id': sg_web_result.group_id} | to_nice_yaml }}"
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create IAM Policy for S3 Access
+      amazon.aws.iam_managed_policy:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        policy_name: team03_s3_policy
+        policy: " {{ lookup( 'file', 's3_policy.json') }} "
+        state: present
+      register: s3_policy_result
+    - name: Show team03_policy creation result
+      debug:
+        var: s3_policy_result
+    - name: Save the team03_s3_policy result to a file
+      blockinfile:
+        block: |
+          policy_id: {{ s3_policy_result.policy.policy_id | to_nice_yaml }}
+          s3_policy_arn: {{ s3_policy_result.policy.arn | to_nice_yaml }}
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create S3 Role
+      amazon.aws.iam_role:
+        name: team03_ec2_s3_role
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        tags:
+          Name: team03_ec2_s3_role
+        assume_role_policy_document: "{{ lookup('file','ec2-role.json') }}"
+        managed_policy: ["{{ s3_policy_arn }}"]
+      register: s3_role_result
+    - name: Show team03_s3_role creation result
+      debug:
+        var: s3_role_result
+    - name: Save the team03_s3_role result to a file
+      blockinfile:
+        block: |
+          s3_role_arn: {{ s3_role_result.iam_role.arn | to_nice_yaml }}
+        dest: "/root/ansible/variables.yml"
+
+
+    - name: Create deploy role
+      amazon.aws.iam_role:
+        name: team03_code_deploy_role
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        region: "{{ region }}"
+        assume_role_policy_document: "{{ lookup('file','ec2-role.json') }}"
+        managed_policy: ["{{ code_deploy_policy_arn }}"]
+      register: code_deploy_role_result
+    - name: Show team03_code_deploy_role creation result
+      debug:
+        var: code_deploy_role_result
+    - name: Save the team03_code_deploy_role result to a file
+      blockinfile:
+        block: |
+          code_deploy_role_arn: {{ code_deploy_role_result.iam_role.arn | to_nice_yaml }}
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Create target group web
+      elb_target_group:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        name: team03-target-group-web
+        protocol: http
+        region: "{{ region }}"
+        port: 80
+        vpc_id: "{{ vpc_id }}"
+        health_check_protocol: http
+        health_check_path: /health
+        successful_response_codes: "200,250-260"
+        tags:
+          Name: team03_target_group_web
+        state: present
+      register: target_group_web_result
+
+
+    - name: Create target group jenkins
+      elb_target_group:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        name: team03-target-group-jenkins
+        protocol: http
+        region: "{{ region }}"
+        port: 80
+        vpc_id: "{{ vpc_id }}"
+        health_check_protocol: http
+        health_check_path: /health
+        successful_response_codes: "200,250-260"
+        tags:
+          Name: team03_target_group_jenkins
+        state: present
+      register: target_group_jenkins_result
+
+
+
+    - name: Create elb     
+      elb_application_lb:
+        name: team03-elb
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        security_groups:
+          - team03_sg_web
+        subnets:
+          - "{{ subnet_pub_2a }}"
+          - "{{ subnet_pub_2c }}"
+        listeners:
+          - Protocol: HTTP
+            Port: 80
+            DefaultActions:
+              - Type: forward
+                TargetGroupName: team03-target-group-jenkins
+              - Type: forward
+                TargetGroupName: team03-target-group-web
+        state: present
+      register: elb_result
+    - name: Show team03_elb creation result
+      debug:
+        var: elb_result
+    - name: Save the team03_elb result to a file
+      blockinfile:
+        block: |
+          hosted_zone_id: {{ elb_result.canonical_hosted_zone_id | to_nice_yaml }}
+          dns_name: {{ elb_result.dns_name | to_nice_yaml }}
+        dest: "/root/ansible/variables.yml"
+
+
+
+    - name: Add to jenkins.domain.com
+      community.aws.route53:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        zone: jinlabs.net
+        record: team03_jenkins.jinlabs.net
+        type: A
+        value: "{{ dns_name }}"
+        alias: true
+        alias_hosted_zone_id: "{{ hosted_zone_id }}"
+        wait: yes
+
+
+    - name: Add to web.domain.com
+      community.aws.route53:
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        state: present
+        zone: jinlabs.net
+        record: team03_web.jinlabs.net
+        type: A
+        value: "{{ dns_name }}"
+        alias: true
+        alias_hosted_zone_id: "{{ hosted_zone_id }}"
+        wait: yes
+      register: domain_result

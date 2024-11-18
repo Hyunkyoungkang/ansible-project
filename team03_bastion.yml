@@ -1,0 +1,52 @@
+---
+- hosts: localhost
+  become: yes
+  vars_files:
+    - ./vars.yml
+  tasks:
+
+    - name: Create bastion
+
+      ec2_instance:
+        instance_type: t2.micro
+        aws_access_key: "{{ aws_access_key_id }}"
+        aws_secret_key: "{{ aws_secret_access_key }}"
+        key_name: project_team_03_key
+        image_id: "{{ ubuntu }}"
+        region: "{{ region }}"
+        security_group: "{{ sg_remote_id }}"
+        subnet_id: "{{ subnet_pub_2a }}"
+        wait: yes
+        wait_timeout: 100
+        network:
+          assign_public_ip: yes
+        tags:
+          Name: team03_bastion
+      register: bastion_result
+
+    - name: Save the team03_bastion
+      blockinfile:
+        path: /root/aws-ansible/vars.yml
+        block: |
+          bastion_pub_ip: {{ bastion_result.instances[0].public_ip_address }}
+        marker: "# {mark} bastion_pub_ip"
+
+
+    - name: Add Bastion host to SSH config
+
+      blockinfile:
+        path: ~/.ssh/config
+        block: |
+          Host bastion
+            Hostname "{{ bastion_pub_ip }}"
+            User ubuntu
+            IdentityFile ~/aws-ansible/project_team_03_key.pem
+          Host jenkins
+            Hostname "{{ jenkins_private_ip }}"
+            User ubuntu
+            IdentityFile ~/aws-ansible/project_team_03_key.pem
+            ProxyJump bastion
+        create: yes
+        mode: "0600"
+        marker: "# {mark} ssh config"
+       
