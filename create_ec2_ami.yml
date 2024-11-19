@@ -13,7 +13,7 @@
       ec2_instance:
         aws_access_key: "{{ aws_access_key_id }}"
         aws_secret_key: "{{ aws_secret_access_key }}"
-        instance_ids: i-0377396f42d13a52a
+        instance_ids: [instance_ids]
         state: stopped
         region: ap-northeast-2
       register: terminate_result
